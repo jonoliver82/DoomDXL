@@ -1,0 +1,214 @@
+//  DOOM for DOORS
+//
+//  Notes 
+//  - draw line width increased to 5 for speed
+//  - xIncrement and YIncrement not divided by 100 to reduce number of steps per ray, 
+//    with corresponding wallHeight adjustment to account for shorter ray lengths (1000.0 / length) 
+//
+//  TODO 
+//  - double buffering
+//  - use polygon per wall instead of multiple rectangles
+//  - speed
+
+// Increase execution time limit
+pragma runLim, 4000000
+
+// Constants
+const int WORLD_WIDTH  = 10
+const int WORLD_HEIGHT = 10
+const int WORLD_BLOCK_SIZE = 10
+const real REAL_WORLD_BLOCK_SIZE = 10
+const int SCREEN_HEIGHT = 200
+const int SCREEN_WIDTH = 300
+const int PLAYER_START_ANGLE_DEGREES = 90
+const int FIELD_OF_VIEW_DEGREES = 60
+const real PLAYER_STEP_AMOUNT = 2.0
+const int PLAYER_ROTATE_DEGREES_AMOUNT = 5
+const int SCREEN_CENTER_Y = SCREEN_HEIGHT / 2
+const int HALF_FIELD_OF_VIEW_DEGREES = FIELD_OF_VIEW_DEGREES / 2
+const int DRAW_LINE_WIDTH = 5
+const real PLAYER_START_X = 3.5 * realOf(WORLD_BLOCK_SIZE)
+const real PLAYER_START_Y = 3.5 * realOf(WORLD_BLOCK_SIZE)
+const real ANGLE_INCREMENT_DEGREES = (realOf(FIELD_OF_VIEW_DEGREES) / realOf(SCREEN_WIDTH)) *  realOf(DRAW_LINE_WIDTH)
+const real RADIANS_CONVERSION_FACTOR = pi / 180.0
+
+const int world[] = 
+{ 
+	1,9,1,9,1,9,1,9,1,9,   
+	9,0,0,0,0,0,0,0,0,1,
+	1,0,0,0,0,0,0,4,0,9,
+	9,0,1,0,0,0,5,0,0,1,
+	1,0,2,0,0,4,0,0,0,9,
+	9,0,3,0,0,0,0,0,0,1,
+	1,0,0,0,0,7,8,0,0,9,
+	9,0,5,0,0,8,7,0,0,1,
+	1,0,6,0,0,0,0,0,0,9,
+	9,1,9,1,9,1,9,1,9,1
+}
+
+// Variables
+DB  dbMain     = null
+DBE dbeGrid    = null
+
+real playerX = PLAYER_START_X
+real playerY = PLAYER_START_Y
+int playerFacingDegrees = PLAYER_START_ANGLE_DEGREES
+
+real cosTable[360]
+real sinTable[360]
+
+//*********************************************************
+// drawWall
+//*********************************************************
+void drawWall(int x, int halfWallHeight, int wallColor)
+{
+	realColor(dbeGrid, wallColor)
+	int y = SCREEN_CENTER_Y - halfWallHeight
+	int height = halfWallHeight * 2
+	rectangle(dbeGrid, x, SCREEN_CENTER_Y - halfWallHeight, DRAW_LINE_WIDTH, halfWallHeight * 2)
+}
+
+//*********************************************************
+// render
+//*********************************************************
+void render()
+{
+	realBackground(dbeGrid, realColor_Black)
+	
+	real rayAngleDegrees
+	real endDegrees = realOf(playerFacingDegrees) + realOf(FIELD_OF_VIEW_DEGREES)
+	
+	for (rayAngleDegrees = playerFacingDegrees; rayAngleDegrees <= endDegrees; rayAngleDegrees += ANGLE_INCREMENT_DEGREES)
+	{				
+		real xIncrement = cosTable[intOf(rayAngleDegrees) % 360]
+		real yIncrement = sinTable[intOf(rayAngleDegrees) % 360]
+		
+		real testX = playerX
+		real testY = playerY
+		int rayLength = 1
+		int wallColour = 0
+		
+		while (wallColour == 0)
+		{
+			testX += xIncrement
+			testY += yIncrement					
+			rayLength++
+			
+			// Minus 0.5 to round down rather than to nearest int
+			int worldX = intOf((testX / REAL_WORLD_BLOCK_SIZE) - 0.5)
+			int worldY = intOf((testY / REAL_WORLD_BLOCK_SIZE) - 0.5)
+			int testArrayIndex = (worldY * WORLD_HEIGHT) + worldX
+			wallColour = world[testArrayIndex]
+		}
+		
+		//Set start x for the rectangles
+        int x = intOf(((rayAngleDegrees - realOf(playerFacingDegrees)) * realOf(DRAW_LINE_WIDTH)) / ANGLE_INCREMENT_DEGREES);
+				
+		//Compensate for fisheye view as ray is cast from center, so apply a reduction of 
+        //half FoV to account for our main loop doing 0...60. Produces values -30 to 30
+        real beta = rayAngleDegrees - realOf(playerFacingDegrees) - realOf(HALF_FIELD_OF_VIEW_DEGREES);
+        // Cant use Cos Table here as using non integer range of values
+        rayLength = intOf(realOf(rayLength) * cos(beta * RADIANS_CONVERSION_FACTOR));
+			
+		//Scale the wall according to distance
+        //If the rayLength is shorter, then the wall must be drawn bigger
+        int wallHeight = intOf(1000.0 / realOf(rayLength) * 2.0);   	
+        if (wallHeight > SCREEN_HEIGHT)
+        {
+            wallHeight = SCREEN_HEIGHT;
+        }
+        int halfWallHeight = wallHeight / 2;
+		
+		drawWall(x, halfWallHeight, wallColour);
+	}
+}
+
+//*********************************************************
+// newGame
+//*********************************************************
+void newGame()
+{
+	// Initialize lookup tables
+	for (i = 0; i < 360; i++)
+	{
+		cosTable[i] = cos(realOf(i) * RADIANS_CONVERSION_FACTOR)
+		sinTable[i] = sin(realOf(i) * RADIANS_CONVERSION_FACTOR)
+	}
+	render()
+}
+
+//*********************************************************
+// doDrawCanvas
+//*********************************************************
+void doDrawCanvas(DBE dbe)
+{
+	; // do nothing
+}
+
+//*********************************************************
+// TryUpdatePlayerPosition
+//*********************************************************
+void TryUpdatePlayerPosition(real testX, real testY)
+{
+	// Minus 0.5 to round down rather than to nearest int
+	int worldX = intOf((testX / REAL_WORLD_BLOCK_SIZE) - 0.5)
+	int worldY = intOf((testY / REAL_WORLD_BLOCK_SIZE) - 0.5)
+	int testArrayIndex = (worldY * WORLD_HEIGHT) + worldX
+	
+	if (world[testArrayIndex] == 0)
+	{
+		playerX = testX
+		playerY = testY
+		render()
+	}
+}
+
+//*********************************************************
+// onKeyboardPress
+//*********************************************************
+void onKeyboardPress(DBE cnv, char key, bool ctrl, int x, int y)
+{
+	if (key == keyLeft)
+	{
+		 playerFacingDegrees = (playerFacingDegrees + (360 - PLAYER_ROTATE_DEGREES_AMOUNT)) % 360;
+		 render()
+	}
+	else if (key == keyRight)
+	{
+		playerFacingDegrees = (playerFacingDegrees + PLAYER_ROTATE_DEGREES_AMOUNT) % 360;
+		render()		
+	}
+	else if (key == keyUp)
+	{
+		real newPlayerX = playerX + (cosTable[playerFacingDegrees] * PLAYER_STEP_AMOUNT)
+		real newPlayerY = playerY + (sinTable[playerFacingDegrees] * PLAYER_STEP_AMOUNT)
+		TryUpdatePlayerPosition(newPlayerX, newPlayerY)
+	}
+	else if (key == keyDown)
+	{
+		real newPlayerX = playerX - (cosTable[playerFacingDegrees] * PLAYER_STEP_AMOUNT)
+		real newPlayerY = playerY - (sinTable[playerFacingDegrees] * PLAYER_STEP_AMOUNT)
+		TryUpdatePlayerPosition(newPlayerX, newPlayerY)
+	}
+}
+
+//*********************************************************
+// onClose
+//*********************************************************
+void onClose(DB db)
+{
+	hide(dbMain)
+	destroy(dbMain)
+	dbMain = null
+}
+
+//*********************************************************
+// Main
+//*********************************************************
+dbMain = create("DOOM", styleCentered | styleFixed)
+dbeGrid = canvas(dbMain, SCREEN_WIDTH, SCREEN_HEIGHT, doDrawCanvas)
+close(dbMain, false, onClose)
+realize dbMain
+set(dbeGrid, onKeyboardPress)
+newGame()
+show dbMain
