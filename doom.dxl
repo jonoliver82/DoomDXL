@@ -34,7 +34,7 @@ const real RADIANS_CONVERSION_FACTOR = pi / 180.0
 
 const int world[] = 
 { 
-	1,9,1,9,1,9,1,9,1,9,   
+	1,9,1,9,1,9,1,9,1,9,
 	9,0,0,0,0,0,0,0,0,1,
 	1,0,0,0,0,0,0,4,0,9,
 	9,0,1,0,0,0,5,0,0,1,
@@ -102,22 +102,22 @@ void render()
 		}
 		
 		//Set start x for the rectangles
-        int x = intOf(((rayAngleDegrees - realOf(playerFacingDegrees)) * realOf(DRAW_LINE_WIDTH)) / ANGLE_INCREMENT_DEGREES);
+		int x = intOf(((rayAngleDegrees - realOf(playerFacingDegrees)) * realOf(DRAW_LINE_WIDTH)) / ANGLE_INCREMENT_DEGREES);
 				
 		//Compensate for fisheye view as ray is cast from center, so apply a reduction of 
-        //half FoV to account for our main loop doing 0...60. Produces values -30 to 30
-        real beta = rayAngleDegrees - realOf(playerFacingDegrees) - realOf(HALF_FIELD_OF_VIEW_DEGREES);
-        // Cant use Cos Table here as using non integer range of values
-        rayLength = intOf(realOf(rayLength) * cos(beta * RADIANS_CONVERSION_FACTOR));
+		//half FoV to account for our main loop doing 0...60. Produces values -30 to 30
+		real beta = rayAngleDegrees - realOf(playerFacingDegrees) - realOf(HALF_FIELD_OF_VIEW_DEGREES);
+		// Cant use Cos Table here as using non integer range of values
+		rayLength = intOf(realOf(rayLength) * cos(beta * RADIANS_CONVERSION_FACTOR));
 			
 		//Scale the wall according to distance
-        //If the rayLength is shorter, then the wall must be drawn bigger
-        int wallHeight = intOf(1000.0 / realOf(rayLength) * 2.0);   	
-        if (wallHeight > SCREEN_HEIGHT)
-        {
-            wallHeight = SCREEN_HEIGHT;
-        }
-        int halfWallHeight = wallHeight / 2;
+		//If the rayLength is shorter, then the wall must be drawn bigger
+		int wallHeight = intOf(1000.0 / realOf(rayLength) * 2.0);   	
+		if (wallHeight > SCREEN_HEIGHT)
+		{
+			wallHeight = SCREEN_HEIGHT;
+		}
+		int halfWallHeight = wallHeight / 2;
 		
 		drawWall(x, halfWallHeight, wallColour);
 	}
