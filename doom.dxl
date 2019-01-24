@@ -12,7 +12,6 @@
 //
 //  TODO 
 //  - double buffering
-//  - use polygon per wall instead of multiple rectangles
 //  - speed
 
 // Increase execution time limit
@@ -62,6 +61,11 @@ int playerFacingDegrees = PLAYER_START_ANGLE_DEGREES
 real cosTable[360]
 real sinTable[360]
 
+// Note points must be in correct order for correct drawing of the polygon:
+// Top Left -> Top Right -> Bottom Right -> Bottom Left
+int wallCoords[8]
+int currentWallColor
+
 //*********************************************************
 // drawWall
 //*********************************************************
@@ -71,6 +75,101 @@ void drawWall(int x, int halfWallHeight, int wallColor)
 	int y = SCREEN_CENTER_Y - halfWallHeight
 	int height = halfWallHeight * 2
 	rectangle(dbeGrid, x, SCREEN_CENTER_Y - halfWallHeight, DRAW_LINE_WIDTH, halfWallHeight * 2)
+}
+
+//*********************************************************
+// setupNewWallCoordinates
+//*********************************************************
+void setupNewWallCoordinates(int x, int y, int height, int wallColor)
+{
+	currentWallColor = wallColor
+
+	// Top Left	
+	wallCoords[0] = x
+	wallCoords[1] = y
+
+	// Bottom Left
+	wallCoords[6] = x
+	wallCoords[7] = y + height
+
+	// Top Right
+	wallCoords[2] = x
+	wallCoords[3] = y
+
+	// Bottom Right
+	wallCoords[4] = x
+	wallCoords[5] = y + height
+}
+
+//*********************************************************
+// extendWallHorizontal
+//*********************************************************
+void extendWallHorizontal(int x)
+{
+	// Top Right	
+	wallCoords[2] = x
+
+	// Bottom Right
+	wallCoords[4] = x
+}
+
+//*********************************************************
+// extendWallVertical
+//*********************************************************
+void extendWallVertical(int y, int height)
+{
+	// Top Right
+	wallCoords[3] = y
+
+	// Bottom Right
+	wallCoords[5] = y + height
+}
+
+
+//*********************************************************
+// drawPolygonWall
+//*********************************************************
+void drawPolygonWall(int x, int halfWallHeight, int wallColor)
+{
+	int y = SCREEN_CENTER_Y - halfWallHeight
+	int height = halfWallHeight * 2
+
+	if (x == 0)
+	{
+		// First column - set up a new wall section
+		setupNewWallCoordinates(x, y, height, wallColor)		
+	}
+	else if (x == SCREEN_WIDTH)
+	{
+		// Last column - extend existing to end of screen
+		extendWallHorizontal(x)
+		extendWallVertical(y, height)
+
+		// Always draw at the end of the screen width
+		realColor(dbeGrid, currentWallColor)
+		polygon(dbeGrid, wallCoords)		
+	}
+	else
+	{
+		if (currentWallColor == wallColor)
+		{
+			// Same wall section - extended right coords out
+			extendWallHorizontal(x)
+			extendWallVertical(y, height)	
+		}
+		else
+		{
+			//A new wall section starts at this X
+			//Extend wall at existing height
+			extendWallHorizontal(x)
+
+			realColor(dbeGrid, currentWallColor)
+			polygon(dbeGrid, wallCoords)
+
+			// Set next wall			
+			setupNewWallCoordinates(x, y, height, wallColor)			
+		}
+	}
 }
 
 //*********************************************************
@@ -117,14 +216,14 @@ void render()
 			
 		//Scale the wall according to distance
         //If the rayLength is shorter, then the wall must be drawn bigger
-        int wallHeight = intOf(1000.0 / realOf(rayLength) * 2.0);   	
+        int wallHeight = intOf(1000.0 / realOf(rayLength) * 2.0)   	
         if (wallHeight > SCREEN_HEIGHT)
         {
-            wallHeight = SCREEN_HEIGHT;
+            wallHeight = SCREEN_HEIGHT
         }
-        int halfWallHeight = wallHeight / 2;
+        int halfWallHeight = wallHeight / 2
 		
-		drawWall(x, halfWallHeight, wallColour);
+		drawPolygonWall(x, halfWallHeight, wallColour)
 	}
 }
 
